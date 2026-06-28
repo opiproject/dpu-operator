@@ -77,10 +77,10 @@ task clean-image-all
 
 6. **Alternative: Remote Registry**
 
-Alternatively, if you set up a registry remotely, define the `REGISTERY` variable. Note that you need to do this for the build step and the push/run step:
+Alternatively, if you set up a registry remotely, define the `REGISTRY` variable. Note that you need to do this for the build step and the push/run step:
 
 ```sh
-REGISTERY=... task ...
+REGISTRY=... task ...
 ```
 
 7. **Alternative: Deploy only one of the cluster**
