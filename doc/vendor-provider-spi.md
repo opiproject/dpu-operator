@@ -18,7 +18,7 @@ repository.
 | Value | Behavior |
 |---|---|
 | empty / `intel` / `marvell` | Path A — never looks up `VendorProvider`, never deploys companion |
-| `nvidia` | Ensure companion Deployment; require `VendorProvider/nvidia` Available |
+| `nvidia` | Require `VendorProvider/nvidia` Available. Ensure an in-namespace companion Deployment only if the provider is not yet Available (skip when an out-of-tree companion in another namespace already registered it). |
 
 ### `VendorProvider` (cluster-scoped)
 

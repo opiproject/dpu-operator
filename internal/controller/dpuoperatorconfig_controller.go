@@ -450,6 +450,24 @@ func (r *DpuOperatorConfigReconciler) ensureNetworkFunctioNAD(ctx context.Contex
 
 func (r *DpuOperatorConfigReconciler) ensureNvidiaAdapter(ctx context.Context, cfg *configv1.DpuOperatorConfig) error {
 	logger := log.FromContext(ctx)
+	// Lab/out-of-tree: companion may already run in another namespace and have
+	// registered VendorProvider. Do not deploy a second manager in this ns
+	// (duplicate reconcile + incomplete bindata manifests crash-loop).
+	vendor := strings.ToLower(strings.TrimSpace(cfg.Spec.Vendor))
+	if vendor != "" {
+		vp := &configv1.VendorProvider{}
+		err := r.Get(ctx, types.NamespacedName{Name: vendor}, vp)
+		if err == nil {
+			cond := meta.FindStatusCondition(vp.Status.Conditions, configv1.VendorProviderConditionAvailable)
+			if cond != nil && cond.Status == metav1.ConditionTrue {
+				logger.Info("Skipping in-namespace NVIDIA adapter ensure; VendorProvider already Available",
+					"vendor", vendor)
+				return nil
+			}
+		} else if !apierrors.IsNotFound(err) {
+			return err
+		}
+	}
 	image, err := r.imageManager.GetImage(images.NvidiaDpfAdapterImage)
 	if err != nil {
 		return err
