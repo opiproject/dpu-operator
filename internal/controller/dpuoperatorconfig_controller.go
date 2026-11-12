@@ -37,7 +37,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 //go:embed bindata/*
@@ -89,6 +91,8 @@ func (r *DpuOperatorConfigReconciler) WithImagePullPolicy(policy string) *DpuOpe
 //+kubebuilder:rbac:groups=config.openshift.io,resources=dpuoperatorconfigs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=config.openshift.io,resources=dpuoperatorconfigs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=config.openshift.io,resources=dpuoperatorconfigs/finalizers,verbs=update
+//+kubebuilder:rbac:groups=config.openshift.io,resources=vendorproviders,verbs=get;list;watch
+//+kubebuilder:rbac:groups=config.openshift.io,resources=vendorproviders/status,verbs=get
 //+kubebuilder:rbac:groups=config.openshift.io,resources=servicefunctionchains,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=config.openshift.io,resources=servicefunctionchains/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=config.openshift.io,resources=servicefunctionchains/finalizers,verbs=create;delete;get;list;patch;update;watch
@@ -185,6 +189,19 @@ func (r *DpuOperatorConfigReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	if err := r.ensureNetworkResourcesInjector(ctx, dpuOperatorConfig); err != nil {
 		logger.Error(err, "Failed to ensure Network Resources Injector is running")
 		reconcileErrors = append(reconcileErrors, componentError{component: "NetworkResourcesInjector", err: err})
+	}
+
+	if RequiresProvider(dpuOperatorConfig.Spec.Vendor) {
+		if err := r.ensureNvidiaAdapter(ctx, dpuOperatorConfig); err != nil {
+			logger.Error(err, "Failed to ensure NVIDIA DPF adapter")
+			reconcileErrors = append(reconcileErrors, componentError{component: "NvidiaDpfAdapter", err: err})
+		}
+		if err := r.reconcileVendorProvider(ctx, dpuOperatorConfig); err != nil {
+			logger.Error(err, "VendorProvider not available", "vendor", dpuOperatorConfig.Spec.Vendor)
+			reconcileErrors = append(reconcileErrors, componentError{component: "VendorProvider", err: err})
+		}
+	} else {
+		meta.RemoveStatusCondition(&dpuOperatorConfig.Status.Conditions, configv1.VendorProviderAvailableCondition)
 	}
 
 	// Update status based on reconciliation results
@@ -431,9 +448,67 @@ func (r *DpuOperatorConfigReconciler) ensureNetworkFunctioNAD(ctx context.Contex
 	return nil
 }
 
+func (r *DpuOperatorConfigReconciler) ensureNvidiaAdapter(ctx context.Context, cfg *configv1.DpuOperatorConfig) error {
+	logger := log.FromContext(ctx)
+	image, err := r.imageManager.GetImage(images.NvidiaDpfAdapterImage)
+	if err != nil {
+		return err
+	}
+	logger.Info("Ensuring NVIDIA DPF adapter Deployment", "image", image)
+	return r.createAndApplyAllFromBinData(logger, "nvidia-adapter", cfg)
+}
+
+// reconcileVendorProvider sets VendorProviderAvailable on the config when
+// spec.vendor requires an out-of-tree provider. Returns an error if the
+// provider is missing or not Available (Ready on the config becomes False).
+func (r *DpuOperatorConfigReconciler) reconcileVendorProvider(ctx context.Context, cfg *configv1.DpuOperatorConfig) error {
+	vendor := strings.ToLower(strings.TrimSpace(cfg.Spec.Vendor))
+	vp := &configv1.VendorProvider{}
+	err := r.Get(ctx, types.NamespacedName{Name: vendor}, vp)
+	if apierrors.IsNotFound(err) {
+		r.setCondition(cfg, metav1.Condition{
+			Type:    configv1.VendorProviderAvailableCondition,
+			Status:  metav1.ConditionFalse,
+			Reason:  "ProviderMissing",
+			Message: fmt.Sprintf("VendorProvider/%s not found; waiting for companion to register", vendor),
+		})
+		return fmt.Errorf("VendorProvider/%s not found", vendor)
+	}
+	if err != nil {
+		return err
+	}
+	cond := meta.FindStatusCondition(vp.Status.Conditions, configv1.VendorProviderConditionAvailable)
+	if cond == nil || cond.Status != metav1.ConditionTrue {
+		msg := fmt.Sprintf("VendorProvider/%s is not Available", vendor)
+		if cond != nil {
+			msg = cond.Message
+		}
+		r.setCondition(cfg, metav1.Condition{
+			Type:    configv1.VendorProviderAvailableCondition,
+			Status:  metav1.ConditionFalse,
+			Reason:  "ProviderNotReady",
+			Message: msg,
+		})
+		return fmt.Errorf("%s", msg)
+	}
+	r.setCondition(cfg, metav1.Condition{
+		Type:    configv1.VendorProviderAvailableCondition,
+		Status:  metav1.ConditionTrue,
+		Reason:  "ProviderAvailable",
+		Message: fmt.Sprintf("VendorProvider/%s is Available", vendor),
+	})
+	return nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *DpuOperatorConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	enqueueConfig := handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
+		return []reconcile.Request{{
+			NamespacedName: types.NamespacedName{Name: vars.DpuOperatorConfigName},
+		}}
+	})
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&configv1.DpuOperatorConfig{}).
+		Watches(&configv1.VendorProvider{}, enqueueConfig).
 		Complete(r)
 }
