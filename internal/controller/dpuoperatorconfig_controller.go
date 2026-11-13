@@ -450,9 +450,8 @@ func (r *DpuOperatorConfigReconciler) ensureNetworkFunctioNAD(ctx context.Contex
 
 func (r *DpuOperatorConfigReconciler) ensureNvidiaAdapter(ctx context.Context, cfg *configv1.DpuOperatorConfig) error {
 	logger := log.FromContext(ctx)
-	// Lab/out-of-tree: companion may already run in another namespace and have
-	// registered VendorProvider. Do not deploy a second manager in this ns
-	// (duplicate reconcile + incomplete bindata manifests crash-loop).
+	// Out-of-tree companion may already run elsewhere and have registered
+	// VendorProvider. Skip in-namespace ensure to avoid dual managers.
 	vendor := strings.ToLower(strings.TrimSpace(cfg.Spec.Vendor))
 	if vendor != "" {
 		vp := &configv1.VendorProvider{}
