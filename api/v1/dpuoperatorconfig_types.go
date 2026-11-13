@@ -29,6 +29,15 @@ import (
 type DpuOperatorConfigSpec struct {
 	// Set log level of the operator. Edit dpuoperatorconfig_types.go to remove/update
 	LogLevel int `json:"logLevel,omitempty"`
+
+	// Vendor optionally selects an out-of-tree provider path.
+	// Empty (default), "intel", or "marvell": in-tree VSP/daemon only — no
+	// VendorProvider lookup and no companion Deployment.
+	// "nvidia": ensure the NVIDIA companion Deployment and require
+	// VendorProvider/nvidia Available=True.
+	// +optional
+	// +kubebuilder:validation:Enum="";intel;marvell;nvidia
+	Vendor string `json:"vendor,omitempty"`
 }
 
 // DpuOperatorConfigStatus defines the observed state of DpuOperatorConfig

@@ -92,6 +92,9 @@ spec:
           value: quay.io/openshift/dpu-marvell-cp-agent:latest
         - name: intel_netsec
           value: quay.io/openshift/dpu-intel-netsec-vsp:latest
+        # Out-of-tree NVIDIA companion (VendorProvider SPI). Override for lab/release pins.
+        - name: NvidiaDpfAdapterImage
+          value: quay.io/opiproject/opi-nvidia-dpf-adapter:latest
         image: quay.io/openshift/dpu-operator:latest
         name: manager
         securityContext:

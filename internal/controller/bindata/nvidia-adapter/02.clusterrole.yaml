@@ -1,0 +1,65 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: opi-nvidia-dpf-adapter
+  labels:
+    app: opi-nvidia-dpf-adapter
+rules:
+  # Mirrors opi-nvidia-dpf-adapter config/rbac/role.yaml + helm-installer-role
+  # so the in-namespace SPI ensure can run LCM + translate (not just
+  # VendorProvider registration).
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "patch", "update"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["config.openshift.io"]
+    resources: ["dataprocessingunits", "servicefunctionchains"]
+    verbs: ["get", "list", "patch", "update", "watch"]
+  - apiGroups: ["config.openshift.io"]
+    resources: ["dataprocessingunits/finalizers", "dpuoperatorconfigs/finalizers", "servicefunctionchains/finalizers"]
+    verbs: ["update"]
+  - apiGroups: ["config.openshift.io"]
+    resources: ["dataprocessingunits/status", "dpuoperatorconfigs/status", "servicefunctionchains/status"]
+    verbs: ["get", "patch", "update"]
+  - apiGroups: ["config.openshift.io"]
+    resources: ["dpuoperatorconfigs"]
+    verbs: ["get", "list", "update", "watch"]
+  - apiGroups: ["config.openshift.io"]
+    resources: ["vendorproviders"]
+    verbs: ["create", "get", "list", "patch", "update", "watch"]
+  - apiGroups: ["config.openshift.io"]
+    resources: ["vendorproviders/status"]
+    verbs: ["get", "patch", "update"]
+  - apiGroups: ["operator.dpu.nvidia.com"]
+    resources: ["dpfoperatorconfigs"]
+    verbs: ["create", "get", "list", "patch", "update", "watch"]
+  - apiGroups: ["operators.coreos.com"]
+    resources: ["clusterserviceversions"]
+    verbs: ["get", "list"]
+  - apiGroups: ["operators.coreos.com"]
+    resources: ["subscriptions"]
+    verbs: ["get", "list", "patch", "update"]
+  - apiGroups: ["provisioning.dpu.nvidia.com"]
+    resources: ["bfbs", "dpudevices", "dpuflavors", "dpus"]
+    verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+  - apiGroups: ["provisioning.dpu.nvidia.com"]
+    resources: ["dpuclusters"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["svc.dpu.nvidia.com"]
+    resources: ["dpuservicechains", "dpuserviceinterfaces", "dpuservices"]
+    verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+  # Helm install of the pinned dpf-operator chart (same as companion
+  # helm-installer-role). Narrow later if the chart's surface stabilizes.
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+  - nonResourceURLs: ["*"]
+    verbs: ["*"]

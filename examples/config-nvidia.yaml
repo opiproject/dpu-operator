@@ -1,0 +1,9 @@
+apiVersion: config.openshift.io/v1
+kind: DpuOperatorConfig
+metadata:
+  name: dpu-operator-config
+spec:
+  logLevel: 0
+  # Enables out-of-tree NVIDIA companion (VendorProvider SPI).
+  # Intel/Marvell: omit vendor or leave empty — in-tree path only.
+  vendor: nvidia
