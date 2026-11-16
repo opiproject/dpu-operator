@@ -44,6 +44,49 @@ Core sets `DpuOperatorConfig` condition `VendorProviderAvailable` only when
 reconcile path; if the provider is required and missing/not Available,
 `Ready` becomes False with reason `VendorProviderError`.
 
+## Detection and the vendor plugin
+
+`spec.detection` is optional. When it is set and the provider is `Available`,
+the daemon adds a detector for that product. Intel, Marvell, and NetSec stay
+on the built-in detectors, and a provider that omits `detection` changes nothing.
+
+```yaml
+spec:
+  vendor: nvidia
+  capabilities: [lifecycle, translate]
+  detection:
+    pciVendorID: "15b3"
+    pciDeviceIDs: ["a2dc", "a2dd"]
+    excludePCIDeviceIDs: ["c2d3"]
+    productName: NVIDIA BlueField-3
+    platformName: nvidia-bluefield
+```
+
+| Field | Meaning |
+|---|---|
+| `pciVendorID`, `pciDeviceIDs` | Host PCI IDs, four hex digits. Matched case-insensitively. |
+| `excludePCIDeviceIDs` | Same vendor, but not a DPU. A management function goes here. |
+| `productName` | Written to `DataProcessingUnit.spec.dpuProductName`. |
+| `platformName` | DNS label. The CR name is `<platformName>-<lowercase serial>-host`. |
+
+Detection is host side only. The daemon never creates a DPU-side
+`DataProcessingUnit` from a provider. Two ports of one card share a serial, so
+they become one CR. SR-IOV virtual functions are ignored even when their device
+ID is listed. A device whose serial cannot be read is skipped.
+
+The daemon reads the serial from the sysfs `serial` file, then VPD `SN`, then
+the PCIe Device Serial Number capability. It does not use the fixed config
+offset the Intel path uses.
+
+A provider with `detection` set owns the vendor plugin for `productName`. The
+`DataProcessingUnit` controller does not render a VSP pod for that product.
+The provider deploys its own plugin on the socket the daemon already dials.
+Intel and Marvell keep the in-tree VSP pod.
+
+The daemon needs `get`, `list`, and `watch` on `vendorproviders`. That rule is
+in the daemon ClusterRole. If the list fails, the daemon keeps the built-in
+detectors and logs the error once.
+
 ## What stays out of core
 
 - DPF Helm charts, Kamaji, Multus policy, FieldMapping

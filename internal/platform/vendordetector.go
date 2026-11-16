@@ -17,6 +17,7 @@ import (
 
 type DpuDetectorManager struct {
 	platform  Platform
+	builtin   []VendorDetector
 	detectors []VendorDetector
 }
 
@@ -60,15 +61,22 @@ func SanitizeForTemplate(name string) string {
 }
 
 func NewDpuDetectorManager(platform Platform) *DpuDetectorManager {
-	return &DpuDetectorManager{
-		platform: platform,
-		detectors: []VendorDetector{
-			NewIntelDetector(),
-			NewMarvellDetector(),
-			NewNetsecAcceleratorDetector(),
-			// add more detectors here
-		},
+	builtin := []VendorDetector{
+		NewIntelDetector(),
+		NewMarvellDetector(),
+		NewNetsecAcceleratorDetector(),
 	}
+	return &DpuDetectorManager{
+		platform:  platform,
+		builtin:   builtin,
+		detectors: append([]VendorDetector{}, builtin...),
+	}
+}
+
+// SetProviderDetectors replaces detectors built from VendorProvider objects.
+// Built-in detectors are kept. A nil list leaves only the built-in detectors.
+func (d *DpuDetectorManager) SetProviderDetectors(extra []VendorDetector) {
+	d.detectors = append(append([]VendorDetector{}, d.builtin...), extra...)
 }
 
 func (d *DpuDetectorManager) GetVendorDirectory(dpuProductName string) (string, error) {

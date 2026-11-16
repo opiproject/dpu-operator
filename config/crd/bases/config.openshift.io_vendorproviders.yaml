@@ -26,9 +26,9 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: VendorProvider advertises an out-of-tree vendor companion (e.g.
-          NVIDIA DPF adapter). Intel and Marvell do not require a VendorProvider;
-          they use the in-tree VSP path.
+        description: |-
+          VendorProvider advertises an out-of-tree vendor companion (e.g. NVIDIA DPF adapter).
+          Intel and Marvell do not require a VendorProvider; they use the in-tree VSP path.
         properties:
           apiVersion:
             description: |-
@@ -56,6 +56,54 @@ spec:
                 items:
                   type: string
                 type: array
+              detection:
+                description: |-
+                  Detection declares the host PCI devices that this provider's product is
+                  found on. When set, the daemon creates a host DataProcessingUnit for each
+                  matching device, and the provider owns the vendor plugin for that product:
+                  the operator does not render a VSP pod for it. Only an Available
+                  provider contributes detection.
+                properties:
+                  excludePCIDeviceIDs:
+                    description: |-
+                      ExcludePCIDeviceIDs are device IDs with the same vendor that are not DPUs,
+                      for example an on-card management function.
+                    items:
+                      pattern: ^[0-9a-fA-F]{4}$
+                      type: string
+                    type: array
+                  pciDeviceIDs:
+                    description: |-
+                      PCIDeviceIDs are the PCI device IDs that identify a DPU of this product.
+                      SR-IOV virtual functions are never counted, whatever their device ID.
+                    items:
+                      pattern: ^[0-9a-fA-F]{4}$
+                      type: string
+                    minItems: 1
+                    type: array
+                  pciVendorID:
+                    description: PCIVendorID is the four-hex-digit PCI vendor ID,
+                      for example "15b3".
+                    pattern: ^[0-9a-fA-F]{4}$
+                    type: string
+                  platformName:
+                    description: |-
+                      PlatformName prefixes the DataProcessingUnit name, which is
+                      <platformName>-<lowercase serial>-host. It must be a lowercase DNS label.
+                    maxLength: 40
+                    pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                    type: string
+                  productName:
+                    description: ProductName is the DataProcessingUnit spec.dpuProductName
+                      for these devices.
+                    minLength: 1
+                    type: string
+                required:
+                - pciDeviceIDs
+                - pciVendorID
+                - platformName
+                - productName
+                type: object
               endpoint:
                 description: |-
                   Endpoint is reserved for a future RPC SPI. Empty means the provider
