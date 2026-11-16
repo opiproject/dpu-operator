@@ -100,6 +100,12 @@ func (r *SfcReconciler) createOrUpdatePod(ctx context.Context, pod *corev1.Pod) 
 
 func (r *SfcReconciler) ensureNetworkFunctionExists(ctx context.Context, sfc *configv1.ServiceFunctionChain, nf configv1.NetworkFunction) error {
 	logger := r.log.WithValues("networkFunction", nf.Name)
+	// A chart network function has no image. The vendor provider realizes it.
+	// Creating a pod here would use an empty image and consume two openshift.io/dpu devices.
+	if nf.Chart != nil {
+		logger.Info("Network function uses a Helm chart; not creating a pod")
+		return nil
+	}
 	pod := networkFunctionPod(nf.Name, nf.Image, sfc.Spec.NodeSelector)
 
 	if err := controllerutil.SetControllerReference(sfc, pod, r.Scheme); err != nil {
