@@ -174,7 +174,7 @@ kubectl create -f examples/my-pod.yaml
 
 ### Network Functions
 
-Currently the `ServiceFunctionChain` will deploy a pod with the provided image onto the DPU.
+A network function with `image` is deployed as a pod. A network function with `chart` is not: the vendor provider realizes that chart, and the reconciler does not create a pod for it.
 
 However there is an example network function provided in the path `examples/sfc-pod.yaml` that could be used to deploy to the DPU directly via the dpu-cni. The ServiceFunctionChain CR is currently optional.
 
