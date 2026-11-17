@@ -440,7 +440,14 @@ func (d *Daemon) syncSingleDpuCR(dpuCR *configv1.DataProcessingUnit, existingCRM
 	}
 
 	if needsStatusUpdate {
-		currentDpuCR.Status = dpuCR.Status
+		// Write only the Ready condition. Replacing Status drops conditions
+		// that other controllers own (for example the NVIDIA adapter's
+		// DPFReady) on every daemon sync.
+		if ready := meta.FindStatusCondition(dpuCR.Status.Conditions, plugin.ReadyConditionType); ready != nil {
+			meta.SetStatusCondition(&currentDpuCR.Status.Conditions, *ready)
+		} else {
+			meta.RemoveStatusCondition(&currentDpuCR.Status.Conditions, plugin.ReadyConditionType)
+		}
 		err := d.client.Status().Update(context.TODO(), currentDpuCR)
 		if err != nil {
 			return false, fmt.Errorf("Failed to update DPU CR status %s: %v", identifier, err)
