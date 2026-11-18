@@ -6,6 +6,8 @@ This operator will manage and configure data processing unit (DPUs) to be used i
 
 The DPU operator adds support for DPUs to OpenShift in a vendor-agnostic way, using (soon to be) standard APIs. The main goal is for users to be able to run their workloads leveraging DPU resources without requiring an expert understanding of vendor-specific details.
 
+The daemon owns only the `Ready` condition on a `DataProcessingUnit`. Each status sync sets or removes that condition and leaves every other condition as it is, so a vendor adapter keeps the conditions it writes. When `Ready` is already unchanged, the daemon does not write status.
+
 ## Getting Started
 
 Depending on the type of testing you are doing, you will either need real hardware with real DPUs (e2e tests), or you will test against a Kind cluster (integration tests).
