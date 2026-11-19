@@ -83,6 +83,11 @@ A provider with `detection` set owns the vendor plugin for `productName`. The
 The provider deploys its own plugin on the socket the daemon already dials.
 Intel and Marvell keep the in-tree VSP pod.
 
+The daemon owns only the `Ready` condition on a `DataProcessingUnit`. Each
+status sync sets or removes that condition and leaves every other condition as
+it is, so a vendor adapter keeps the conditions it writes. When `Ready` is
+already unchanged, the daemon does not write status.
+
 The daemon needs `get`, `list`, and `watch` on `vendorproviders`. That rule is
 in the daemon ClusterRole. If the list fails, the daemon keeps the built-in
 detectors and logs the error once.
