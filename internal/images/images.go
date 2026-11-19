@@ -11,6 +11,9 @@ const (
 	VspImageMarvellCpAgent = "MarvellVspCpAgentImage"
 	DpuOperatorDaemonImage = "DpuOperatorDaemonImage"
 	NRIWebhookImage        = "NRIWebhookImage"
+	// NvidiaDpfAdapterImage is the out-of-tree OPI NVIDIA DPF companion.
+	// Override via the operator's image env map (same pattern as other VSPs).
+	NvidiaDpfAdapterImage = "NvidiaDpfAdapterImage"
 )
 
 type ImageManager interface {
@@ -30,6 +33,7 @@ func AllImageKeys() []string {
 		VspImageIntelNetSec,
 		VspImageP4Intel,
 		VspImageMarvellCpAgent,
+		NvidiaDpfAdapterImage,
 	}
 }
 

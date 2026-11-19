@@ -6,6 +6,8 @@ This operator will manage and configure data processing unit (DPUs) to be used i
 
 The DPU operator adds support for DPUs to OpenShift in a vendor-agnostic way, using (soon to be) standard APIs. The main goal is for users to be able to run their workloads leveraging DPU resources without requiring an expert understanding of vendor-specific details.
 
+Out-of-tree vendors (NVIDIA) use the optional [VendorProvider SPI](doc/vendor-provider-spi.md): set `spec.vendor: nvidia` on `DpuOperatorConfig` (see `examples/config-nvidia.yaml`). Intel and Marvell remain on the in-tree VSP path when `vendor` is empty.
+
 ## Getting Started
 
 Depending on the type of testing you are doing, you will either need real hardware with real DPUs (e2e tests), or you will test against a Kind cluster (integration tests).

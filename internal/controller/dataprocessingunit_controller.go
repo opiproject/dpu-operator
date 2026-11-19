@@ -104,6 +104,21 @@ func (r *DataProcessingUnitReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return r.handleDeletion(ctx, dpu)
 	}
 
+	// A provider that declared this product deploys its own plugin. Rendering
+	// the in-tree VSP pod would put a second process on the same socket.
+	managed, err := r.pluginProviderManaged(ctx, dpu.Spec.DpuProductName)
+	if err != nil {
+		logger.Error(err, "Failed to check whether a provider owns the vendor plugin")
+		return ctrl.Result{RequeueAfter: time.Second * 10}, err
+	}
+	if managed {
+		logger.Info("Vendor provider deploys the plugin; not rendering a VSP pod", "dpuProductName", dpu.Spec.DpuProductName)
+		if err := r.cleanupVSPResources(ctx, dpu, logger); err != nil {
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
+	}
+
 	// Get the single DpuOperatorConfig CR to use as owner for VSP resources
 	dpuOperatorConfig, err := r.getSoleDpuOperatorConfig(ctx, dpu.Namespace)
 	if err != nil {
@@ -217,6 +232,29 @@ func (r *DataProcessingUnitReconciler) applyVSPResourcesWithTracking(logger logr
 
 func (r *DataProcessingUnitReconciler) getVSPName(dpu *configv1.DataProcessingUnit) string {
 	return fmt.Sprintf("vsp-%s", dpu.Name)
+}
+
+func (r *DataProcessingUnitReconciler) pluginProviderManaged(ctx context.Context, productName string) (bool, error) {
+	list := &configv1.VendorProviderList{}
+	if err := r.List(ctx, list); err != nil {
+		return false, err
+	}
+	return ProviderManagesPlugin(list.Items, productName), nil
+}
+
+// ProviderManagesPlugin reports whether an Available provider declared detection
+// for this product and therefore deploys the vendor plugin itself.
+func ProviderManagesPlugin(providers []configv1.VendorProvider, productName string) bool {
+	for i := range providers {
+		vp := &providers[i]
+		if vp.Spec.Detection == nil || vp.Spec.Detection.ProductName != productName {
+			continue
+		}
+		if vp.Available() {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *DataProcessingUnitReconciler) getVendorDirectory(dpu *configv1.DataProcessingUnit) (string, error) {
