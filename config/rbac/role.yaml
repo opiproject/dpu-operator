@@ -76,6 +76,7 @@ rules:
   - dpuoperatorconfigs
   - servicefunctionchains
   - servicefunctionchains/finalizers
+  - vendorproviders
   verbs:
   - create
   - delete
@@ -99,6 +100,7 @@ rules:
   - dataprocessingunits/status
   - dpuoperatorconfigs/status
   - servicefunctionchains/status
+  - vendorproviders/status
   verbs:
   - get
   - patch

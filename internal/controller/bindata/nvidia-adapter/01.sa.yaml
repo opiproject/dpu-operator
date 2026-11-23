@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: opi-nvidia-dpf-adapter
+  namespace: {{.Namespace}}
+  labels:
+    app: opi-nvidia-dpf-adapter

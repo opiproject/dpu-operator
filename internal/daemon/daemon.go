@@ -62,6 +62,8 @@ type Daemon struct {
 	// Readiness state tracking
 	readyMutex sync.RWMutex
 	isReady    bool
+	// Last VendorProvider list error, so a missing CRD is logged once.
+	providerListErr string
 }
 
 func NewDaemon(fs afero.Fs, p platform.Platform, config *rest.Config, imageManager images.ImageManager, pathManager *utils.PathManager, nodeName string) Daemon {
@@ -136,6 +138,26 @@ func (d *Daemon) markReady() {
 	}
 }
 
+// refreshProviderDetectors rebuilds detectors from Available VendorProvider
+// objects that declared spec.detection. A list failure leaves the built-in
+// Intel, Marvell, and NetSec detectors in place.
+func (d *Daemon) refreshProviderDetectors(ctx context.Context) {
+	if d.client == nil || d.dpuDetectorManger == nil {
+		return
+	}
+	list := &configv1.VendorProviderList{}
+	if err := d.client.List(ctx, list); err != nil {
+		if err.Error() != d.providerListErr {
+			d.log.Info("VendorProvider list failed; using built-in detectors only", "error", err.Error())
+			d.providerListErr = err.Error()
+		}
+		d.dpuDetectorManger.SetProviderDetectors(nil)
+		return
+	}
+	d.providerListErr = ""
+	d.dpuDetectorManger.SetProviderDetectors(platform.ProviderDetectorsFromList(list))
+}
+
 func (d *Daemon) PrepareAndServe(ctx context.Context) error {
 	err := d.Prepare()
 
@@ -191,6 +213,7 @@ func (d *Daemon) Serve(ctx context.Context) error {
 	for {
 		select {
 		case <-ticker.C:
+			d.refreshProviderDetectors(ctx)
 			detectedDpusList, err := d.dpuDetectorManger.DetectAll(d.imageManager, d.client, *d.pm, d.nodeName)
 			if err != nil {
 				d.log.Error(err, "Got error while detecting DPUs")
